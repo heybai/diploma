@@ -12,4 +12,8 @@ public class Frame {
     public Frame(IplImage img) {
         this.img = img;
     }
+
+    public Mat getAsMat() {
+        return new Mat(img);
+    }
 }

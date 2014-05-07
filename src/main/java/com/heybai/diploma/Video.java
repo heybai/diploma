@@ -17,4 +17,8 @@ public class Video {
     public int nFrames() {
         return frames.size();
     }
+
+    public List<Frame> getFrames() {
+        return frames;
+    }
 }

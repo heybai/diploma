@@ -11,31 +11,31 @@ import java.util.List;
  */
 public class MathPlot {
 
-    public void features(List<Features> featureses) {
-        plot(featuresToPlot(featureses), "frame", "nFeatures", "Features stats");
-    }
-
-    public List<Point> featuresToPlot(List<Features> featureses) {
-        List<Point> points = new ArrayList<Point>();
-        for (int i = 0; i < featureses.size(); ++i) {
-            points.add(new Point(i, featureses.get(i).nFeatures()));
-        }
-        return points;
-    }
-
-    public void matches(List<Matches> matcheses) {
-        plot(matchesToPlot(matcheses), "frame", "nMatches", "Matches stats");
-    }
-
-    public List<Point> matchesToPlot(List<Matches> matcheses) {
-        List<Point> points = new ArrayList<Point>();
-        for (int i = 0; i < matcheses.size(); ++i) {
-            int n = matcheses.get(i).nMatches();
-//            points.add(new Point(i, n > 200 ? 100 : n));
-            points.add(new Point(i, n));
-        }
-        return points;
-    }
+//    public void features(List<Features> featureses) {
+//        plot(featuresToPlot(featureses), "frame", "nFeatures", "Features stats");
+//    }
+//
+//    public List<Point> featuresToPlot(List<Features> featureses) {
+//        List<Point> points = new ArrayList<Point>();
+//        for (int i = 0; i < featureses.size(); ++i) {
+//            points.add(new Point(i, featureses.get(i).nFeatures()));
+//        }
+//        return points;
+//    }
+//
+//    public void matches(List<Matches> matcheses) {
+//        plot(matchesToPlot(matcheses), "frame", "nMatches", "Matches stats");
+//    }
+//
+//    public List<Point> matchesToPlot(List<Matches> matcheses) {
+//        List<Point> points = new ArrayList<Point>();
+//        for (int i = 0; i < matcheses.size(); ++i) {
+//            int n = matcheses.get(i).nMatches();
+////            points.add(new Point(i, n > 200 ? 100 : n));
+//            points.add(new Point(i, n));
+//        }
+//        return points;
+//    }
 
     private void plot(List<Point> points, String xName, String yName, String plotName) {
         double[] x = new double[points.size()];

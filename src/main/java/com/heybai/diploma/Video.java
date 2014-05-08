@@ -18,6 +18,10 @@ public class Video {
         return frames.size();
     }
 
+    public void setFrames(List<Frame> frames) {
+        this.frames = frames;
+    }
+
     public List<Frame> getFrames() {
         return frames;
     }

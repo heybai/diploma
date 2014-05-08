@@ -19,82 +19,84 @@ public class Main {
     static String videoPath = "/Volumes/Macintosh HD/Users/heybai/Documents/yandex.disk/Documents/University/Diploma/materials/e1.avi";
 
     public static void main(String[] args) throws FrameGrabber.Exception, InterruptedException {
-//        featuresStats();
-        matches();
+        Recostuctor r = new Recostuctor();
+
+        Video v = r.grab(videoPath);
+        r.removeDuplicates(v);
     }
 
     public static void featuresStats() throws FrameGrabber.Exception, InterruptedException {
-        LOG.info("Start");
-
-        // Parse video to Frames
-        Video video = new VideoGrabber().grab(videoPath);
-        LOG.info("Video parsed. Number of frames = {}", video.nFrames());
-
-        // Cut the video
-        video = new Video(video.getFrames().subList(30, 70));
-        LOG.info("Video cropped & now has {} frames", video.nFrames());
-
-        // Extract Features
-        FeaturesExtractor featuresExtractor = new FeaturesExtractor();
-        List<Features> featureses = featuresExtractor.extract(video,
-                new FeaturesExtractor.SiftConfig(0, 3, 0.08, 10, 1.6));
-        LOG.info("Features extracted");
-
-        // Plot stats
-        new MathPlot().features(featureses);
-
-        // Min & max features
-        int iMin = 0;
-        int iMax = 0;
-        for (int i = 0; i < video.nFrames(); ++i) {
-            if (featureses.get(i).nFeatures() < featureses.get(iMin).nFeatures()) {
-                iMin = i;
-            }
-            if (featureses.get(i).nFeatures() > featureses.get(iMax).nFeatures()) {
-                iMax = i;
-            }
-        }
-        Frame min = ImgUtils.copy(video.get(iMin));
-        featuresExtractor.apply(video.get(iMin), featureses.get(iMin), min);
-        Frame max = ImgUtils.copy(video.get(iMax));
-        featuresExtractor.apply(video.get(iMax), featureses.get(iMax), max);
-
-        new Canvas().frames(min, "Min", max, "Max");
+//        LOG.info("Start");
+//
+//        // Parse video to Frames
+//        Video video = new VideoGrabber().grab(videoPath);
+//        LOG.info("Video parsed. Number of frames = {}", video.nFrames());
+//
+//        // Cut the video
+//        video = new Video(video.getFrames().subList(30, 70));
+//        LOG.info("Video cropped & now has {} frames", video.nFrames());
+//
+//        // Extract Features
+//        FeaturesExtractor featuresExtractor = new FeaturesExtractor();
+//        List<Features> featureses = featuresExtractor.extract(video,
+//                new FeaturesExtractor.SiftConfig(0, 3, 0.08, 10, 1.6));
+//        LOG.info("Features extracted");
+//
+//        // Plot stats
+//        new MathPlot().features(featureses);
+//
+//        // Min & max features
+//        int iMin = 0;
+//        int iMax = 0;
+//        for (int i = 0; i < video.nFrames(); ++i) {
+//            if (featureses.get(i).nFeatures() < featureses.get(iMin).nFeatures()) {
+//                iMin = i;
+//            }
+//            if (featureses.get(i).nFeatures() > featureses.get(iMax).nFeatures()) {
+//                iMax = i;
+//            }
+//        }
+//        Frame min = ImgUtils.copy(video.get(iMin));
+//        featuresExtractor.apply(video.get(iMin), featureses.get(iMin), min);
+//        Frame max = ImgUtils.copy(video.get(iMax));
+//        featuresExtractor.apply(video.get(iMax), featureses.get(iMax), max);
+//
+//        new Canvas().frames(min, "Min", max, "Max");
     }
 
     public static void matches() throws FrameGrabber.Exception, InterruptedException {
-        LOG.info("Start");
-
-//        Point c = new Point(0, 0);
-//        Point p1 = new Point(200, 300);
-//        Point p2 = new Point(-200, 300);
-//        System.out.println(MathUtils.angel(p2, c, p1));
-
-        // Parse video to Frames
-        Video video = new VideoGrabber().grab(videoPath);
-        LOG.info("Video parsed. Number of frames = {}", video.nFrames());
-
-        // Cut the video
-        video = new Video(video.getFrames().subList(30, 70));
-        LOG.info("Video cropped & now has {} frames", video.nFrames());
-
-        // Extract Features
-        FeaturesExtractor featuresExtractor = new FeaturesExtractor();
-        List<Features> featureses = featuresExtractor.extract(video,
-                new FeaturesExtractor.SiftConfig(0, 3, 0.01, 10, 1.6));
-        LOG.info("Features extracted");
-
-        // Match
-        Matcher matcher = new Matcher();
-        List<Matches> matcheses = matcher.match(featureses);
-        LOG.info("Matches found");
-
-        // Filter Matches
-        List<Matches> filtered = matcher.filter(matcheses, ImgUtils.center(video), ImgUtils.radius(video));
-        LOG.info("Matches filtered");
-
-        // Plot stats
-        new MathPlot().matches(filtered);
+//        LOG.info("Start");
+//
+////        Point c = new Point(0, 0);
+////        Point p1 = new Point(200, 300);
+////        Point p2 = new Point(-200, 300);
+////        System.out.println(MathUtils.angel(p2, c, p1));
+//
+//        // Parse video to Frames
+//        Video video = new VideoGrabber().grab(videoPath);
+//        LOG.info("Video parsed. Number of frames = {}", video.nFrames());
+//
+//        // Cut the video
+//        video = new Video(video.getFrames().subList(30, 70));
+//        LOG.info("Video cropped & now has {} frames", video.nFrames());
+//
+//        // Extract Features
+//        FeaturesExtractor featuresExtractor = new FeaturesExtractor();
+//        List<Features> featureses = featuresExtractor.extract(video,
+//                new FeaturesExtractor.SiftConfig(0, 3, 0.01, 10, 1.6));
+//        LOG.info("Features extracted");
+//
+//        // Match
+//        Matcher matcher = new Matcher();
+//        List<Matches> matcheses = matcher.match(featureses);
+//        LOG.info("Matches found");
+//
+//        // Filter Matches
+//        List<Matches> filtered = matcher.filter(matcheses, ImgUtils.center(video), ImgUtils.radius(video));
+//        LOG.info("Matches filtered");
+//
+//        // Plot stats
+//        new MathPlot().matches(filtered);
 
 //        // Images with matches;
 //        for (int i = 0; i < filtered.size(); ++i) {

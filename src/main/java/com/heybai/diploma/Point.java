@@ -20,4 +20,9 @@ public class Point {
     public float getY() {
         return y;
     }
+
+    @Override
+    public String toString() {
+        return String.format("(%s, %s)", x, y);
+    }
 }

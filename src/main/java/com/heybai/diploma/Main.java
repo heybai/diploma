@@ -19,13 +19,35 @@ public class Main {
     static String videoPath = "/Volumes/Macintosh HD/Users/heybai/Documents/yandex.disk/Documents/University/Diploma/materials/e1.avi";
 
     public static void main(String[] args) throws FrameGrabber.Exception, InterruptedException {
+//        featuresStats();
+        matchesStats();
+    }
+
+    public static void featuresStats() throws FrameGrabber.Exception {
         Recostuctor r = new Recostuctor();
 
         Video v = r.grab(videoPath);
         r.removeDuplicates(v);
+        r.findFeatures(v, new SiftConfig(0, 3, 0.03, 10, 1.6));
+        r.outputFeatures(v);
+        MathPlot.plot("Features stats", "frame", "nFeatures", r.featuresPlot(v));
     }
 
-    public static void featuresStats() throws FrameGrabber.Exception, InterruptedException {
+    public static void matchesStats() throws FrameGrabber.Exception, InterruptedException {
+        Recostuctor r = new Recostuctor();
+
+        Video v = r.grab(videoPath);
+        r.removeDuplicates(v);
+        // best: 0, 3, 0.02, 10, 1.6
+        r.findFeatures(v, new SiftConfig(0, 3, 0.02, 10, 1.6));
+        r.findPipeCenter(v);
+        r.findMatches(v);
+        r.filterMatches(v);
+        r.outputMatches(v);
+        MathPlot.plot("Matches stats", "frame", "nMatches", r.matchesPlot(v));
+    }
+
+//    public static void featuresStats() throws FrameGrabber.Exception, InterruptedException {
 //        LOG.info("Start");
 //
 //        // Parse video to Frames
@@ -62,7 +84,7 @@ public class Main {
 //        featuresExtractor.apply(video.get(iMax), featureses.get(iMax), max);
 //
 //        new Canvas().frames(min, "Min", max, "Max");
-    }
+//    }
 
     public static void matches() throws FrameGrabber.Exception, InterruptedException {
 //        LOG.info("Start");

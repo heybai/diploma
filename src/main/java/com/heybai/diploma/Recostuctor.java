@@ -13,7 +13,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.bytedeco.javacpp.opencv_core.*;
+import static org.bytedeco.javacpp.opencv_core.cvCircle;
 import static org.bytedeco.javacpp.opencv_features2d.*;
+import static org.bytedeco.javacpp.opencv_highgui.cvSaveImage;
+import static org.bytedeco.javacpp.opencv_imgproc.*;
+import static org.bytedeco.javacpp.opencv_imgproc.CV_MEDIAN;
+import static org.bytedeco.javacpp.opencv_imgproc.cvSmooth;
 import static org.bytedeco.javacpp.opencv_nonfree.*;
 
 /**
@@ -26,7 +31,6 @@ public class Recostuctor {
     private static Logger LOG = LoggerFactory.getLogger(Recostuctor.class);
 
     public Video grab(String videoPath) throws FrameGrabber.Exception {
-        LOG.info("Grab start");
         FrameGrabber grabber = OpenCVFrameGrabber.createDefault(videoPath);
         grabber.start();
         opencv_core.IplImage img;
@@ -44,12 +48,11 @@ public class Recostuctor {
             }
         }
         grabber.stop();
-        LOG.info("Grab stop with {} frames", frames.size());
+        LOG.info("Video grabbed with {} frames", frames.size());
         return new Video(frames);
     }
 
     public void removeDuplicates(Video video) {
-        LOG.info("Remove dups start");
         List<Frame> filtered = new ArrayList<Frame>();
         filtered.add(video.get(0));
         for (int i = 1; i < video.nFrames(); ++i) {
@@ -60,7 +63,7 @@ public class Recostuctor {
             }
         }
         video.setFrames(filtered);
-        LOG.info("Remove dups stop with {} frames left", video.nFrames());
+        LOG.info("Duplicate frames removed, {} left", video.nFrames());
     }
 
     public boolean compare(Frame f1, Frame f2) {
@@ -68,17 +71,22 @@ public class Recostuctor {
         Mat m2 = f2.mat();
         BytePointer p1;
         BytePointer p2;
-        for (int i = 0; i < f1.width(); ++i) {
-            for (int j = 0; j < f1.height(); ++j) {
+        int count = 0;
+        for (int i = 50; i < f1.width() - 50; ++i) {
+            for (int j = 50; j < f1.height() - 50; ++j) {
                 p1 = m1.ptr(j, i);
                 p2 = m2.ptr(j, i);
 
                 for (int k = 0; k < 3; ++k) {
                     if (p1.get(k) != p2.get(k)) {
-                        return false;
+                        ++count;
+                        break;
                     }
                 }
             }
+        }
+        if (count > 1000) {
+            return false;
         }
         return true;
     }
@@ -87,9 +95,58 @@ public class Recostuctor {
         video.setFrames(video.getFrames().subList(from, to));
     }
 
+    public void findPipeCenter(Video video) throws InterruptedException {
+        float xSum = 0;
+        float ySum = 0;
+        float count = 0;
+        for (Frame f : video.getFrames()) {
+            // color range of black like color
+            CvScalar min = cvScalar(0, 0, 0, 0);
+            CvScalar max= cvScalar(30, 30, 30, 0);
+            // create binary image of original size
+            IplImage bin = cvCreateImage(cvGetSize(f.img()), 8, 1);
+            // apply thresholding
+            cvInRangeS(f.img(), min, max, bin);
+//            Canvas.img(bin);
+            // crop center
+            int w = 100;
+            int h = 200;
+            opencv_core.IplImage binCropped = cvCreateImage(cvGetSize(f.img()), 8, 1);
+            cvSetImageROI(bin, cvRect(f.img().width() / 2 - w / 2, f.img().height() / 2 - h / 2, w, h));
+            cvSetImageROI(binCropped, cvRect(f.img().width() / 2 - w / 2, f.img().height() / 2 - h / 2, w, h));
+            cvCopy(bin, binCropped);
+            cvResetImageROI(bin);
+            cvResetImageROI(binCropped);
+//            Canvas.img(binCropped);
+            // ex
+            IplConvKernel kernel = cvCreateStructuringElementEx(7, 7, 3, 3, CV_SHAPE_ELLIPSE);
+            cvMorphologyEx(binCropped, binCropped, null, kernel, CV_MOP_OPEN);
+            // smooth filter - median
+            cvSmooth(binCropped, binCropped, CV_MEDIAN, 5, 0, 0, 0);
+//            Canvas.img(binCropped);
+            // find circles
+            CvMemStorage mem = CvMemStorage.create();
+            CvSeq circles = cvHoughCircles(binCropped, mem, CV_HOUGH_GRADIENT, 2,
+                    (double) binCropped.height() / 1, 1, 1, 1, 300);
+            if (circles.total() > 0) {
+                CvPoint3D32f circle = new CvPoint3D32f(cvGetSeqElem(circles, 0));
+                CvPoint center = cvPoint((int) circle.x(), (int) circle.y());
+                xSum += center.x();
+                ySum += center.y();
+                ++count;
+            }
+        }
+
+        Point center = new Point(xSum / count, ySum / count);
+        for (Frame f : video.getFrames()) {
+            f.setPipeCenter(center);
+        }
+
+        LOG.info("Pipe center was detected at {}, while image center is at {}", center, ImgUtils.center(video));
+    }
+
     public void findFeatures(Video video, SiftConfig sc) {
         SIFT sift = new SIFT(sc.nfeatures, sc.nOctaveLayers, sc.contrastThreshold, sc.edgeThreshold, sc.sigma);
-
         for (Frame f : video.getFrames()) {
             KeyPoint keypoints = new KeyPoint();
             Mat descriptors = new Mat();
@@ -98,12 +155,33 @@ public class Recostuctor {
 
             f.setFeatures(keypoints, descriptors);
         }
+        LOG.info("Features found");
+    }
+
+    public List<Point> featuresPlot(Video video) {
+        List<Point> plot = new ArrayList<Point>();
+        for (int i = 0; i < video.nFrames(); ++i) {
+            plot.add(new Point(i, video.get(i).nFeatures()));
+        }
+        LOG.info("Features plot created");
+        return plot;
+    }
+
+    public void outputFeatures(Video video) {
+        for (int i = 0; i < video.nFrames(); ++i) {
+            Frame src = video.get(i);
+            Frame dst = ImgUtils.copy(src);
+            drawKeypoints(src.mat(), src.getKeyPoints(), dst.mat());
+            cvSaveImage(String.format("frame-features-%s.jpg", i), dst.img());
+        }
+        LOG.info("Frames with matches & pipe centers written to files");
     }
 
     public void findMatches(Video video) {
         for (int i = 1; i < video.nFrames(); ++i) {
             findMatches(video.get(i - 1), video.get(i));
         }
+        LOG.info("Matches found");
     }
 
     public void findMatches(Frame f1, Frame f2) {
@@ -126,9 +204,10 @@ public class Recostuctor {
     }
 
     public void filterMatches(Video video) {
-        for (Frame frame : video.getFrames()) {
-            filterMatches(frame);
+        for (int i = 0; i < video.nFrames() - 1; ++i) {
+            filterMatches(video.get(i));
         }
+        LOG.info("Matches filtered");
     }
 
     public void filterMatches(Frame frame) {
@@ -146,15 +225,26 @@ public class Recostuctor {
         float p2Dist = MathUtils.dist(match.getP2(), frame.getPipeCenter());
         float dist = MathUtils.dist(match);
 
+        // not in center
         double rd = ImgUtils.radius(frame) * 0.3;
         if (p1Dist < rd || p2Dist < rd) {
             return false;
         }
 
-        if (dist > 120) {
+        // not far away
+        if (dist < 10 || dist > 60) {
             return false;
         }
 
+        // not water
+        Point c = frame.getPipeCenter();
+        Point p = new Point(c.getX(), c.getY() + 100);
+        double wt = Math.PI / 5;
+        if (MathUtils.angel(c, p, match.getP1()) < wt || MathUtils.angel(c, p, match.getP2()) < wt) {
+            return false;
+        }
+
+        // directed to center of the pipe
         if (dist > 0.5) {
             float angel;
             double ang = Math.PI / 10;
@@ -172,6 +262,28 @@ public class Recostuctor {
         }
 
         return true;
+    }
+
+    public List<Point> matchesPlot(Video video) {
+        List<Point> plot = new ArrayList<Point>();
+        for (int i = 0; i < video.nFrames() - 1; ++i) {
+            plot.add(new Point(i, video.get(i).nMatches()));
+        }
+        LOG.info("Matches plot");
+        return plot;
+    }
+
+    public void outputMatches(Video video) {
+        for (int i = 0; i < video.nFrames() - 1; ++i) {
+            Frame src = video.get(i);
+            Frame dst = ImgUtils.copy(src);
+            for (Match m : src.getMatches()) {
+                cvLine(dst.img(), ImgUtils.point(m.getP1()), ImgUtils.point(m.getP2()), CvScalar.RED);
+            }
+            cvCircle(dst.img(), ImgUtils.point(src.getPipeCenter()), 20, CvScalar.RED, 1, CV_AA, 0);
+            cvSaveImage(String.format("frame-matches-%s.jpg", i), dst.img());
+        }
+        LOG.info("Frames with matches & pipe centers written to files");
     }
 
 }

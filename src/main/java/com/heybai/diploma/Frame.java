@@ -47,6 +47,10 @@ public class Frame {
         this.descriptors = descriptors;
     }
 
+    public int nFeatures() {
+        return keyPoints.capacity();
+    }
+
     public KeyPoint getKeyPoints() {
         return keyPoints;
     }
@@ -61,6 +65,10 @@ public class Frame {
 
     public void setMatches(List<Match> matches) {
         this.matches = matches;
+    }
+
+    public int nMatches() {
+        return matches.size();
     }
 
     public Point getPipeCenter() {

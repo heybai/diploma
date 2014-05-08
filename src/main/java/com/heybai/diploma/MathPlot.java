@@ -37,7 +37,7 @@ public class MathPlot {
 //        return points;
 //    }
 
-    private void plot(List<Point> points, String xName, String yName, String plotName) {
+    public static void plot(String plotName, String xName, String yName, List<Point> points) {
         double[] x = new double[points.size()];
         double[] y = new double[points.size()];
 
@@ -55,7 +55,7 @@ public class MathPlot {
         plot.addLinePlot(plotName, x, y);
 
         // put the PlotPanel in a JFrame, as a JPanel
-        JFrame frame = new JFrame("a plot panel");
+        JFrame frame = new JFrame(plotName);
         frame.setContentPane(plot);
         frame.setVisible(true);
         frame.setSize(1100, 700);

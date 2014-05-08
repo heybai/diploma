@@ -23,6 +23,11 @@ public class ImgUtils {
         return new Frame(dst);
     }
 
+    public static Point center(Video video) {
+        IplImage img = video.get(0).img();
+        return new Point(img.width() / 2, img.height() / 2);
+    }
+
     public static float radius(Frame frame) {
         IplImage img = frame.img();
         return (float) Math.min(img.width(), img.height()) / 2;

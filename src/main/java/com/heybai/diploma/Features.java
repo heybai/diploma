@@ -15,4 +15,16 @@ public class Features {
         this.keyPoints = keyPoints;
         this.descriptors = descriptors;
     }
+
+    public int nFeatures() {
+        return keyPoints.capacity();
+    }
+
+    public KeyPoint getKeyPoints() {
+        return keyPoints;
+    }
+
+    public Mat getDescriptors() {
+        return descriptors;
+    }
 }

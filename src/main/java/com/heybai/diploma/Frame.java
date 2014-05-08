@@ -1,5 +1,7 @@
 package com.heybai.diploma;
 
+import org.bytedeco.javacpp.opencv_core;
+
 import static org.bytedeco.javacpp.opencv_core.*;
 
 /**
@@ -13,7 +15,11 @@ public class Frame {
         this.img = img;
     }
 
-    public Mat getAsMat() {
+    public IplImage img() {
+        return img;
+    }
+
+    public Mat mat() {
         return new Mat(img);
     }
 }

@@ -24,7 +24,7 @@ public class FeaturesExtractor {
     public List<Features> extract(Video video, SiftConfig sc) {
         List<Features> featureses = new ArrayList<Features>();
         for (Frame frame : video.getFrames()) {
-            featureses.add(extract(video.getFrames().get(0)));
+            featureses.add(extract(frame, sc));
         }
         return featureses;
     }
@@ -34,14 +34,18 @@ public class FeaturesExtractor {
     }
 
     public Features extract(Frame frame, SiftConfig sc) {
-        SIFT sift = new SIFT(0, 3, 0.04, 10, 1.6);
+        SIFT sift = new SIFT(sc.nfeatures, sc.nOctaveLayers, sc.contrastThreshold, sc.edgeThreshold, sc.sigma);
 
         KeyPoint keypoints = new KeyPoint();
         Mat descriptors = new Mat();
-        sift.detect(frame.getAsMat(), keypoints);
-        sift.compute(frame.getAsMat(), keypoints, descriptors);
+        sift.detect(frame.mat(), keypoints);
+        sift.compute(frame.mat(), keypoints, descriptors);
 
         return new Features(keypoints, descriptors);
+    }
+
+    public void apply(Frame frame, Features features, Frame dst) {
+        drawKeypoints(frame.mat(), features.getKeyPoints(), dst.mat());
     }
 
     public static class SiftConfig {

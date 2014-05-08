@@ -21,4 +21,8 @@ public class Video {
     public List<Frame> getFrames() {
         return frames;
     }
+
+    public Frame get(int i) {
+        return frames.get(i);
+    }
 }

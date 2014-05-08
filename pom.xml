@@ -44,6 +44,14 @@
             <version>1.7.7</version>
         </dependency>
 
+        <!-- MathPlot -->
+        <dependency>
+            <groupId>org.math</groupId>
+            <artifactId>jmathplot</artifactId>
+            <version>1.0</version>
+            <scope>system</scope>
+            <systemPath>${basedir}/lib/jmathplot.jar</systemPath>
+        </dependency>
 
     </dependencies>
 

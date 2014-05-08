@@ -26,7 +26,7 @@ public class VideoGrabber {
             if (img == null) {
                 break;
             } else {
-                frames.add(new Frame(img));
+                frames.add(new Frame(ImgUtils.copy(img)));
             }
         }
         grabber.stop();

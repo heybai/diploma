@@ -20,7 +20,8 @@ public class Main {
 
     public static void main(String[] args) throws FrameGrabber.Exception, InterruptedException {
 //        featuresStats();
-        matchesStats();
+//        matchesStats();
+        triangulation();
     }
 
     public static void featuresStats() throws FrameGrabber.Exception {
@@ -45,6 +46,21 @@ public class Main {
         r.filterMatches(v);
         r.outputMatches(v);
         MathPlot.plot("Matches stats", "frame", "nMatches", r.matchesPlot(v));
+    }
+
+    public static void triangulation() throws FrameGrabber.Exception, InterruptedException {
+        Recostuctor r = new Recostuctor();
+
+        Video v = r.grab(
+                "/Users/heybai/Documents/yandex.disk/Documents/University/Diploma/code/diploma/f1.jpg",
+                "/Users/heybai/Documents/yandex.disk/Documents/University/Diploma/code/diploma/f2.jpg"
+        );
+        r.findFeatures(v, new SiftConfig(0, 3, 0.02, 10, 1.6));
+//        r.findPipeCenter(v);
+        r.findMatches(v);
+        r.filterMatches(v);
+//        r.outputMatches(v);
+        r.mmm(v);
     }
 
 //    public static void featuresStats() throws FrameGrabber.Exception, InterruptedException {

@@ -20,7 +20,7 @@ public class Frame {
     private List<Match> matches;
 
     // Center
-    private Point pipeCenter;
+    private Point pipeCenter = new Point(329, 377);
 
     public Frame(IplImage img) {
         this.img = img;

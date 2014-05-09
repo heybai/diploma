@@ -10,11 +10,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.bytedeco.javacpp.opencv_core.*;
 import static org.bytedeco.javacpp.opencv_core.cvCircle;
 import static org.bytedeco.javacpp.opencv_features2d.*;
+import static org.bytedeco.javacpp.opencv_highgui.cvLoadImage;
 import static org.bytedeco.javacpp.opencv_highgui.cvSaveImage;
 import static org.bytedeco.javacpp.opencv_imgproc.*;
 import static org.bytedeco.javacpp.opencv_imgproc.CV_MEDIAN;
@@ -49,6 +51,15 @@ public class Recostuctor {
         }
         grabber.stop();
         LOG.info("Video grabbed with {} frames", frames.size());
+        return new Video(frames);
+    }
+
+    public Video grab(String... frame) {
+        List<Frame> frames = new ArrayList<Frame>();
+        for (int i = 0; i < frame.length; ++i) {
+            IplImage img = cvLoadImage(frame[i]);
+            frames.add(new Frame(img));
+        }
         return new Video(frames);
     }
 
@@ -236,6 +247,11 @@ public class Recostuctor {
             return false;
         }
 
+        // must be directed to center
+        if (p1Dist < p2Dist) {
+            return false;
+        }
+
         // not water
         Point c = frame.getPipeCenter();
         Point p = new Point(c.getX(), c.getY() + 100);
@@ -284,6 +300,39 @@ public class Recostuctor {
             cvSaveImage(String.format("frame-matches-%s.jpg", i), dst.img());
         }
         LOG.info("Frames with matches & pipe centers written to files");
+    }
+
+    public void mmm(Video video) {
+        Frame f1 = video.get(0);
+
+        Point center = ImgUtils.center(video);
+        double k = 300 / (Math.PI / 2.1);
+        double del = 20;
+
+        List<Double> heights = new ArrayList<Double>();
+        for (Match m : f1.getMatches()) {
+            Point a = m.getP1();
+            Point b = m.getP2();
+
+            double a_rad = MathUtils.dist(center, a);
+            double b_rad = MathUtils.dist(center, b);
+
+            double a_ang = a_rad / k;
+            double b_ang =b_rad / k;
+
+            double h = (del + Math.tan(b_ang)) / (1.0 - (Math.tan(b_ang) / Math.tan(a_ang)));
+            double zz = (del + Math.tan(b_ang)) / (Math.tan(a_ang) - Math.tan(b_ang));
+
+            heights.add(h);
+//            System.out.println(String.format("a_rad=%.5f, a_ang=%.5f, h=%.5f, zz=%.5f", a_rad, a_ang, h, zz));
+        }
+
+        Collections.sort(heights);
+        List<Point> plot = new ArrayList<Point>();
+        for (int i = 0; i < heights.size(); ++i) {
+            plot.add(new Point(i, heights.get(i).floatValue()));
+        }
+        MathPlot.plot("Heights", "i", "height", plot);
     }
 
 }

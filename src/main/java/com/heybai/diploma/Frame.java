@@ -23,6 +23,10 @@ public class Frame {
     // Center
     private Point pipeCenter = new Point(329, 377);
 
+    // Position
+    // Distance to the next frame
+    private double dz;                  // not for last frame
+
     public Frame(IplImage img) {
         this.img = img;
     }
@@ -90,5 +94,13 @@ public class Frame {
 
     public void setPipeCenter(Point pipeCenter) {
         this.pipeCenter = pipeCenter;
+    }
+
+    public double getDz() {
+        return dz;
+    }
+
+    public void setDz(double dz) {
+        this.dz = dz;
     }
 }

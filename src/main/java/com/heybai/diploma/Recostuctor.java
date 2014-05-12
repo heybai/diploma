@@ -1,5 +1,7 @@
 package com.heybai.diploma;
 
+import com.heybai.diploma.lma.LMA;
+import com.heybai.diploma.lma.LMAMultiDimFunction;
 import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacpp.Loader;
 import org.bytedeco.javacpp.opencv_core;
@@ -357,6 +359,138 @@ public class Recostuctor {
         }
     }
 
+    public void findCameraPoses(Video video) {
+        // One penguin :)
+        video.get(0).setDz(1);
+
+        final Point c = ImgUtils.center(video);
+        final double f = 1.178 * 206;
+
+        for (int i = 0; i < video.nFrames() - 2; ++i) {
+            Frame fr = video.get(i);
+
+            // y=0 z1 r1 r2 r3
+            double data[][] = new double[fr.nTriples()][5];
+            for (int t = 0; t < fr.nTriples(); ++t) {
+                data[t][0] = 0;
+                data[t][1] = fr.getDz();
+                data[t][2] = MathUtils.dist(c, fr.getTriples().get(t).getP1());
+                data[t][3] = MathUtils.dist(c, fr.getTriples().get(t).getP2());
+                data[t][4] = MathUtils.dist(c, fr.getTriples().get(t).getP3());
+            }
+
+            LMA lma = new LMA(
+                    new LMAMultiDimFunction() {
+                        private double koef(double r1, double r2) {
+                            return Math.tan(r1 / f) * Math.tan(r2 / f) / (Math.tan(r1 / f) - Math.tan(r2 / f));
+                        }
+
+                        private double pow(double a) {
+                            return a * a;
+                        }
+
+                        @Override
+                        public double getY(double[] x, double[] a) {
+                            double z1 = x[0];
+                            double r1 = x[1];
+                            double r2 = x[2];
+                            double r3 = x[3];
+
+                            double z2 = a[0];
+
+//                            return z1 * koef(r1, r2) - z2 * koef(r2, r3);
+                            return pow(z1 * koef(r1, r2) - z2 * koef(r2, r3));
+                        }
+
+                        @Override
+                        public double getPartialDerivate(double[] x, double[] a, int parameterIndex) {
+                            double z1 = x[0];
+                            double r1 = x[1];
+                            double r2 = x[2];
+                            double r3 = x[3];
+
+                            double z2 = a[0];
+
+                            switch (parameterIndex) {
+                                // z2
+                                case 0:
+//                                    return - koef(r2, r3);
+                                    return - 2 * koef(r2, r3) * (z1 * koef(r1, r2) - z2 * koef(r2, r3));
+                            }
+
+                            throw new RuntimeException("No such parameter index: " + parameterIndex);
+                        }
+                    },
+                    // z2
+                    new double[] {1},
+                    data
+            );
+            lma.fit();
+
+            video.get(i + 1).setDz(lma.parameters[0]);
+        }
+
+        LOG.info("Camera poses found");
+    }
+
+    public List<Point> cameraPosesPlot(Video video) {
+        List<Point> plot = new ArrayList<Point>();
+        for (int i = 0; i < video.nFrames() - 1; ++i) {
+            plot.add(new Point(i, (float) video.get(i).getDz()));
+        }
+        return plot;
+    }
+
+    public List<Point> mathchesAvgDistPlot(Video video) {
+        List<Point> plot = new ArrayList<Point>();
+        for (int i = 0; i < video.nFrames() - 1; ++i) {
+            double sum = 0;
+            for (Match m : video.get(i).getMatches()) {
+                sum += MathUtils.dist(m.getP1(), m.getP2());
+            }
+            plot.add(new Point(i, (float) (sum / (double) video.get(i).nMatches())));
+        }
+        return plot;
+    }
+
+    public List<Point3D> triangulation(Video video) {
+        List<Point3D> res = new ArrayList<Point3D>();
+
+        double cameraZ = 10;
+        Point center = ImgUtils.center(video);
+
+        double focus = 1.178;
+        double k = 320 / (focus * Math.sin(Math.PI * 5 / 9));
+        double f = focus * k;
+        LOG.info("focus={}, k={}, f={}", focus, k, f);
+
+        for (int i = 0; i < video.nFrames() - 1; ++i) {
+            Frame fr = video.get(i);
+            for (Match m : fr.getMatches()) {
+                double r1 = MathUtils.dist(center, m.getP1());
+                double r2 = MathUtils.dist(center, m.getP2());
+
+                double dz = fr.getDz() * Math.tan(r1 / f) / (Math.tan(r1 / f) - Math.tan(r2 / f));
+                double r = dz * Math.tan(r2 / f);
+
+                double koef = r / r1;
+                double x = m.getP1().getX() - center.getX();
+                double y = m.getP1().getY() - center.getY();
+
+                res.add(new Point3D(x * koef, y * koef, cameraZ - dz));
+            }
+
+            cameraZ += fr.getDz();
+        }
+
+        LOG.info("Triangulation done with {} points", res.size());
+        return res;
+    }
+
+
+
+
+
     public void mmm(Video video) {
         Frame f1 = video.get(0);
 
@@ -364,7 +498,7 @@ public class Recostuctor {
         double f = 1.178;
 //        double k = 206;
         double k = 320 / (1.178 * Math.sin(Math.PI * 5 / 9));
-        System.out.println("k = " + k);
+        LOG.info("k = " + k);
         double del = 0.6;
 
         List<R> rs = new ArrayList<R>();

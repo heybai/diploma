@@ -17,7 +17,8 @@ public class Frame {
     private Mat descriptors;
 
     // Matches
-    private List<Match> matches;
+    private List<Match> matches;        // not for last frame
+    private List<Triple> triples;       // not for last two
 
     // Center
     private Point pipeCenter = new Point(329, 377);
@@ -69,6 +70,18 @@ public class Frame {
 
     public int nMatches() {
         return matches.size();
+    }
+
+    public List<Triple> getTriples() {
+        return triples;
+    }
+
+    public void setTriples(List<Triple> triples) {
+        this.triples = triples;
+    }
+
+    public int nTriples() {
+        return triples.size();
     }
 
     public Point getPipeCenter() {

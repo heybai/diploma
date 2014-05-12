@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import static org.bytedeco.javacpp.opencv_core.*;
@@ -96,6 +97,7 @@ public class Recostuctor {
                 }
             }
         }
+//        System.out.println(count);
         if (count > 1000) {
             return false;
         }
@@ -296,20 +298,76 @@ public class Recostuctor {
             for (Match m : src.getMatches()) {
                 cvLine(dst.img(), ImgUtils.point(m.getP1()), ImgUtils.point(m.getP2()), CvScalar.RED);
             }
+//            cvCircle(dst.img(), ImgUtils.point(src.getPipeCenter()), 20, CvScalar.RED, 1, CV_AA, 0);
+            cvSaveImage(String.format("frame-matches-%s.jpg", i), dst.img());
+        }
+        LOG.info("Frames with matches & pipe centers written to files");
+    }
+
+    public void findTriples(Video video) {
+        double e = 0.1;
+        for (int i = 0; i < video.nFrames() - 2; ++i) {
+            List<Match> ms1 = video.get(i).getMatches();
+            List<Match> ms2 = video.get(i + 1).getMatches();
+            List<Triple> triples = new ArrayList<Triple>();
+            for (Match m1 : ms1) {
+                for (Match m2 : ms2) {
+                    if (MathUtils.dist(m1.getP2(), m2.getP1()) < e) {
+                        triples.add(new Triple(m1.getP1(), m1.getP2(), m2.getP2()));
+                        break;
+                    }
+                }
+            }
+            video.get(i).setTriples(triples);
+        }
+        LOG.info("Triples found");
+    }
+
+    public void outputTriples(Video video) {
+        for (int i = 0; i < video.nFrames() - 2; ++i) {
+            Frame src = video.get(i);
+            Frame dst = ImgUtils.copy(src);
+            for (Triple t : src.getTriples()) {
+                cvLine(dst.img(), ImgUtils.point(t.getP1()), ImgUtils.point(t.getP2()), CvScalar.RED);
+                cvLine(dst.img(), ImgUtils.point(t.getP2()), ImgUtils.point(t.getP3()), CvScalar.GREEN);
+            }
             cvCircle(dst.img(), ImgUtils.point(src.getPipeCenter()), 20, CvScalar.RED, 1, CV_AA, 0);
             cvSaveImage(String.format("frame-matches-%s.jpg", i), dst.img());
         }
         LOG.info("Frames with matches & pipe centers written to files");
     }
 
+    public List<Point> triplesPlot(Video video) {
+        List<Point> plot = new ArrayList<Point>();
+        for (int i = 0; i < video.nFrames() - 2; ++i) {
+            plot.add(new Point(i, video.get(i).nTriples()));
+        }
+        return plot;
+    }
+
+    public void printTriplesForLevenberg(Video video) {
+        Frame f1 = video.get(12);
+        Point center = ImgUtils.center(video);
+        for (Triple t : f1.getTriples()) {
+            System.out.println(String.format("{0, %.7f, %.7f, %.7f},",
+                    MathUtils.dist(center, t.getP1()),
+                    MathUtils.dist(center, t.getP2()),
+                    MathUtils.dist(center, t.getP3())
+            ));
+        }
+    }
+
     public void mmm(Video video) {
         Frame f1 = video.get(0);
 
         Point center = ImgUtils.center(video);
-        double k = 300 / (Math.PI / 2.1);
-        double del = 20;
+        double f = 1.178;
+//        double k = 206;
+        double k = 320 / (1.178 * Math.sin(Math.PI * 5 / 9));
+        System.out.println("k = " + k);
+        double del = 0.6;
 
-        List<Double> heights = new ArrayList<Double>();
+        List<R> rs = new ArrayList<R>();
         for (Match m : f1.getMatches()) {
             Point a = m.getP1();
             Point b = m.getP2();
@@ -317,22 +375,53 @@ public class Recostuctor {
             double a_rad = MathUtils.dist(center, a);
             double b_rad = MathUtils.dist(center, b);
 
-            double a_ang = a_rad / k;
-            double b_ang =b_rad / k;
+//            double a_ang = Math.asin(a_rad / (f * k));
+//            double b_ang = Math.asin(b_rad / (f * k));
+            double a_ang = a_rad / (k * f);
+            double b_ang = b_rad / (k * f);
 
             double h = (del + Math.tan(b_ang)) / (1.0 - (Math.tan(b_ang) / Math.tan(a_ang)));
             double zz = (del + Math.tan(b_ang)) / (Math.tan(a_ang) - Math.tan(b_ang));
 
-            heights.add(h);
 //            System.out.println(String.format("a_rad=%.5f, a_ang=%.5f, h=%.5f, zz=%.5f", a_rad, a_ang, h, zz));
+            rs.add(new R(a_rad, a_ang, h, zz));
         }
 
-        Collections.sort(heights);
-        List<Point> plot = new ArrayList<Point>();
-        for (int i = 0; i < heights.size(); ++i) {
-            plot.add(new Point(i, heights.get(i).floatValue()));
+        Collections.sort(rs, new Comparator<R>() {
+            @Override
+            public int compare(R r, R r2) {
+                return r.h < r2.h ? -1 : 1;
+//                return r.zz < r2.zz ? -1 : 1;
+//                return r.a_rad < r2.a_rad ? -1 : 1;
+            }
+        });
+//        for (R r : rs) {
+//            System.out.println(r);
+//        }
+//        List<Point> plot = new ArrayList<Point>();
+//        for (int i = 0; i < rs.size(); ++i) {
+//            plot.add(new Point(i, (float) rs.get(i).h));
+//        }
+//        MathPlot.plot("Heights", "i", "height", plot);
+    }
+
+    private class R {
+        double a_rad;
+        double a_ang;
+        double h;
+        double zz;
+
+        private R(double a_rad, double a_ang, double h, double zz) {
+            this.a_rad = a_rad;
+            this.a_ang = a_ang;
+            this.h = h;
+            this.zz = zz;
         }
-        MathPlot.plot("Heights", "i", "height", plot);
+
+        @Override
+        public String toString() {
+            return String.format("a_rad=%.5f, a_ang=%.5f, h=%.5f, zz=%.5f", a_rad, a_ang, h, zz);
+        }
     }
 
 }

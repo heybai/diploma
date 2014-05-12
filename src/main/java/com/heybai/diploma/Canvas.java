@@ -33,4 +33,14 @@ public class Canvas {
         cf2.dispose();
     }
 
+    public static void frames(IplImage f1, String n1, IplImage f2, String n2) throws InterruptedException {
+        CanvasFrame cf1 = new CanvasFrame(n1);
+        CanvasFrame cf2 = new CanvasFrame(n2);
+        cf1.showImage(f1);
+        cf2.showImage(f2);
+        cf1.waitKey();
+        cf1.dispose();
+        cf2.dispose();
+    }
+
 }

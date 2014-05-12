@@ -4,9 +4,6 @@ import org.bytedeco.javacv.FrameGrabber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
-
-import static org.bytedeco.javacpp.opencv_highgui.cvSaveImage;
 
 /**
  * Created by heybai on 5/7/14.
@@ -21,7 +18,9 @@ public class Main {
     public static void main(String[] args) throws FrameGrabber.Exception, InterruptedException {
 //        featuresStats();
 //        matchesStats();
-        triangulation();
+        triplesStats();
+//        triangulation();
+//        levenberg();
     }
 
     public static void featuresStats() throws FrameGrabber.Exception {
@@ -29,7 +28,7 @@ public class Main {
 
         Video v = r.grab(videoPath);
         r.removeDuplicates(v);
-        r.findFeatures(v, new SiftConfig(0, 3, 0.03, 10, 1.6));
+        r.findFeatures(v, new SiftConfig(0, 3, 0.04, 10, 1.6));
         r.outputFeatures(v);
         MathPlot.plot("Features stats", "frame", "nFeatures", r.featuresPlot(v));
     }
@@ -38,14 +37,35 @@ public class Main {
         Recostuctor r = new Recostuctor();
 
         Video v = r.grab(videoPath);
+//        Video v = r.grab(
+//                "/Users/heybai/Documents/yandex.disk/Documents/University/Diploma/code/diploma/f1.jpg",
+//                "/Users/heybai/Documents/yandex.disk/Documents/University/Diploma/code/diploma/f2.jpg"
+//        );
+
         r.removeDuplicates(v);
         // best: 0, 3, 0.02, 10, 1.6
-        r.findFeatures(v, new SiftConfig(0, 3, 0.02, 10, 1.6));
-        r.findPipeCenter(v);
+        r.findFeatures(v, new SiftConfig(0, 3, 0.04, 10, 1.6));
         r.findMatches(v);
+        r.findPipeCenter(v);
         r.filterMatches(v);
         r.outputMatches(v);
         MathPlot.plot("Matches stats", "frame", "nMatches", r.matchesPlot(v));
+    }
+
+    public static void triplesStats() throws FrameGrabber.Exception, InterruptedException {
+        Recostuctor r = new Recostuctor();
+
+        Video v = r.grab(videoPath);
+
+        r.removeDuplicates(v);
+        r.findFeatures(v, new SiftConfig(0, 3, 0.02, 10, 1.6));
+        r.findMatches(v);
+        r.findPipeCenter(v);
+        r.filterMatches(v);
+        r.findTriples(v);
+        r.printTriplesForLevenberg(v);
+//        r.outputTriples(v);
+//        MathPlot.plot("Triples stats", "frame", "nTriples", r.triplesPlot(v));
     }
 
     public static void triangulation() throws FrameGrabber.Exception, InterruptedException {
@@ -56,94 +76,49 @@ public class Main {
                 "/Users/heybai/Documents/yandex.disk/Documents/University/Diploma/code/diploma/f2.jpg"
         );
         r.findFeatures(v, new SiftConfig(0, 3, 0.02, 10, 1.6));
-//        r.findPipeCenter(v);
+        r.findPipeCenter(v);
         r.findMatches(v);
         r.filterMatches(v);
 //        r.outputMatches(v);
         r.mmm(v);
     }
 
-//    public static void featuresStats() throws FrameGrabber.Exception, InterruptedException {
-//        LOG.info("Start");
-//
-//        // Parse video to Frames
-//        Video video = new VideoGrabber().grab(videoPath);
-//        LOG.info("Video parsed. Number of frames = {}", video.nFrames());
-//
-//        // Cut the video
-//        video = new Video(video.getFrames().subList(30, 70));
-//        LOG.info("Video cropped & now has {} frames", video.nFrames());
-//
-//        // Extract Features
-//        FeaturesExtractor featuresExtractor = new FeaturesExtractor();
-//        List<Features> featureses = featuresExtractor.extract(video,
-//                new FeaturesExtractor.SiftConfig(0, 3, 0.08, 10, 1.6));
-//        LOG.info("Features extracted");
-//
-//        // Plot stats
-//        new MathPlot().features(featureses);
-//
-//        // Min & max features
-//        int iMin = 0;
-//        int iMax = 0;
-//        for (int i = 0; i < video.nFrames(); ++i) {
-//            if (featureses.get(i).nFeatures() < featureses.get(iMin).nFeatures()) {
-//                iMin = i;
+    public static void levenberg() {
+//        LevenbergMarquardt lm = new LevenbergMarquardt(new LevenbergMarquardt.Function() {
+//            @Override
+//            public void compute(DenseMatrix64F param, DenseMatrix64F x, DenseMatrix64F y) {
+//                double k = param.get(0);
+//                double b = param.get(1);
+//                for (int i = 0; i < x.getNumElements(); ++i) {
+//                    double xx = x.get(i, 0);
+//                    double yy = x.get(i, 1);
+//                    double res = k * xx + b - yy;
+//                    y.set(i, res);
+//                }
 //            }
-//            if (featureses.get(i).nFeatures() > featureses.get(iMax).nFeatures()) {
-//                iMax = i;
-//            }
-//        }
-//        Frame min = ImgUtils.copy(video.get(iMin));
-//        featuresExtractor.apply(video.get(iMin), featureses.get(iMin), min);
-//        Frame max = ImgUtils.copy(video.get(iMax));
-//        featuresExtractor.apply(video.get(iMax), featureses.get(iMax), max);
+//        });
+//        DenseMatrix64F param = new DenseMatrix64F(new double[][]{
+//                {1, 0}
+//        });
+//        DenseMatrix64F X = new DenseMatrix64F(new double[][]{
+//                {2, 3.1},
+//                {4, 3.9},
+//                {6, 5.1},
+//                {8, 6.1},
+//                {10,7.1},
+//                {12, 7.9},
+//        });
+//        DenseMatrix64F Y = new DenseMatrix64F(new double[][]{
+//                {0},
+//                {0},
+//                {0},
+//                {0},
+//                {0},
+//                {0},
+//        });
+//        lm.optimize(param, X, Y);
 //
-//        new Canvas().frames(min, "Min", max, "Max");
-//    }
-
-    public static void matches() throws FrameGrabber.Exception, InterruptedException {
-//        LOG.info("Start");
-//
-////        Point c = new Point(0, 0);
-////        Point p1 = new Point(200, 300);
-////        Point p2 = new Point(-200, 300);
-////        System.out.println(MathUtils.angel(p2, c, p1));
-//
-//        // Parse video to Frames
-//        Video video = new VideoGrabber().grab(videoPath);
-//        LOG.info("Video parsed. Number of frames = {}", video.nFrames());
-//
-//        // Cut the video
-//        video = new Video(video.getFrames().subList(30, 70));
-//        LOG.info("Video cropped & now has {} frames", video.nFrames());
-//
-//        // Extract Features
-//        FeaturesExtractor featuresExtractor = new FeaturesExtractor();
-//        List<Features> featureses = featuresExtractor.extract(video,
-//                new FeaturesExtractor.SiftConfig(0, 3, 0.01, 10, 1.6));
-//        LOG.info("Features extracted");
-//
-//        // Match
-//        Matcher matcher = new Matcher();
-//        List<Matches> matcheses = matcher.match(featureses);
-//        LOG.info("Matches found");
-//
-//        // Filter Matches
-//        List<Matches> filtered = matcher.filter(matcheses, ImgUtils.center(video), ImgUtils.radius(video));
-//        LOG.info("Matches filtered");
-//
-//        // Plot stats
-//        new MathPlot().matches(filtered);
-
-//        // Images with matches;
-//        for (int i = 0; i < filtered.size(); ++i) {
-//            Frame f = ImgUtils.copy(video.get(i));
-//            matcher.apply(f, filtered.get(i));
-//            Frame f2 = ImgUtils.copy(video.get(i + 1));
-//            matcher.apply(f2, filtered.get(i));
-//            new Canvas().frames(f, String.format("Frame #%s", i), f2, String.format("Frame #%s", i + 1));
-//        }
+//        System.out.println(param);
     }
 
 }

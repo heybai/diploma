@@ -4,7 +4,9 @@ import org.bytedeco.javacv.FrameGrabber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 
 /**
@@ -23,6 +25,7 @@ public class Main {
 //        triplesStats();
 //        cameraPosesStats();
         triangulation();
+//        filterPoints();
     }
 
     public static void featuresStats() throws FrameGrabber.Exception {
@@ -82,8 +85,9 @@ public class Main {
         r.filterMatches(v);
         r.findTriples(v);
         r.findCameraPoses(v);
-//        r.outputTriples(v);
+        r.outputTriples(v);
         MathPlot.plot("Camera poses & avg matches", "camera", "delta z & avg match length", r.cameraPosesPlot(v), r.mathchesAvgDistPlot(v));
+//        MathPlot.plot("Camera poses & avg matches", "camera", "delta z & avg match length", r.cameraPosesPlot(v));
     }
 
     public static void triangulation() throws FrameGrabber.Exception, InterruptedException {
@@ -99,6 +103,43 @@ public class Main {
         r.findTriples(v);
         r.findCameraPoses(v);
         ObjProducer.createObj(r.triangulation(v));
+    }
+    
+    public static void filterPoints() throws FrameGrabber.Exception, InterruptedException {
+        Recostuctor r = new Recostuctor();
+
+        Video v = r.grab(videoPath);
+
+        r.removeDuplicates(v);
+        r.findFeatures(v, new SiftConfig(0, 3, 0.02, 10, 1.6));
+        r.findMatches(v);
+        r.findPipeCenter(v);
+        r.filterMatches(v);
+        r.findTriples(v);
+        r.findCameraPoses(v);
+        List<Point3D> points = r.triangulation(v);
+        
+        Point center = new Point(0, 0);
+        double e = 0.4;
+        double rr = 3.18;
+        double sumX = 0;
+        double sumY = 0;
+        double sumR = 0;
+
+        List<Point3D> filtered = new ArrayList<Point3D>();
+        for (Point3D p : points) {
+            Point p2 = new Point((float) p.getX(), (float) p.getY());
+            if (Math.abs(rr - MathUtils.dist(center, p2)) < e) {
+                filtered.add(p);
+            }
+            sumX += p.getX();
+            sumY = p.getY();
+            sumR += MathUtils.dist(center, p2);
+        }
+        LOG.info("{} filtered points left", filtered.size());
+        LOG.info("Average center is ({}, {}). Average radius is {}", sumX / points.size(), sumY / points.size(), sumR / points.size());
+
+        ObjProducer.createObj(filtered);
     }
 
 }

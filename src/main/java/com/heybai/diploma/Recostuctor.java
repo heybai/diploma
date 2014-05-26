@@ -332,6 +332,7 @@ public class Recostuctor {
             for (Triple t : src.getTriples()) {
                 cvLine(dst.img(), ImgUtils.point(t.getP1()), ImgUtils.point(t.getP2()), CvScalar.RED);
                 cvLine(dst.img(), ImgUtils.point(t.getP2()), ImgUtils.point(t.getP3()), CvScalar.GREEN);
+                cvCircle(dst.img(), ImgUtils.point(t.getP2()), 2, CvScalar.YELLOW, 1, CV_AA, 0);
             }
             cvCircle(dst.img(), ImgUtils.point(src.getPipeCenter()), 20, CvScalar.RED, 1, CV_AA, 0);
             cvSaveImage(String.format("frame-matches-%s.jpg", i), dst.img());

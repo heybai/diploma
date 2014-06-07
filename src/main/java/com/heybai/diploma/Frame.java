@@ -10,7 +10,11 @@ import java.util.List;
  */
 public class Frame {
 
+    private int idx;
+
     private IplImage img;
+
+    private boolean unique;
 
     // Features
     private KeyPoint keyPoints;
@@ -26,9 +30,35 @@ public class Frame {
     // Position
     // Distance to the next frame
     private double dz;                  // not for last frame
+    private double z;
 
-    public Frame(IplImage img) {
+    public Frame(int idx, IplImage img) {
+        this.idx = idx;
         this.img = img;
+    }
+
+    public double getZ() {
+        return z;
+    }
+
+    public void setZ(double z) {
+        this.z = z;
+    }
+
+    public int getIdx() {
+        return idx;
+    }
+
+    public void setIdx(int idx) {
+        this.idx = idx;
+    }
+
+    public boolean isUnique() {
+        return unique;
+    }
+
+    public void setUnique(boolean unique) {
+        this.unique = unique;
     }
 
     public int width() {

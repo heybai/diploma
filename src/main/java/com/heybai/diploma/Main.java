@@ -24,8 +24,8 @@ public class Main {
 //        matchesStats();
 //        triplesStats();
 //        cameraPosesStats();
-        triangulation();
-//        filterPoints();
+//        triangulation();
+        triangulationParallel();
         LOG.info("Stop");
     }
 
@@ -69,7 +69,7 @@ public class Main {
         r.findPipeCenter(v);
         r.filterMatches(v);
         r.findTriples(v);
-        r.printTriplesForLevenberg(v);
+//        r.printTriplesForLevenberg(v);
 //        r.outputTriples(v);
 //        MathPlot.plot("Triples stats", "frame", "nTriples", r.triplesPlot(v));
     }
@@ -111,28 +111,33 @@ public class Main {
         r.findTriples(v);
 
         r.findCameraPoses(v, 2);
-        ObjProducer.createObj(r.triangulation(v, 2), "pipe.obj");
+        List<Point3D> points = r.triangulation(v, 2);
+//        points = filterPoints(points);
+        ObjProducer.createObj(points, "pipe.obj");
 
 //        for (int i = 0; i < 5; ++i) {
 //            r.findCameraPoses(v, i);
 //            ObjProducer.createObj(r.triangulation(v, i), String.format("pipe - %s.obj", i));
 //        }
     }
-    
-    public static void filterPoints() throws FrameGrabber.Exception, InterruptedException {
+
+    public static void triangulationParallel() throws FrameGrabber.Exception, InterruptedException {
         Reconstructor r = new Reconstructor();
 
         Video v = r.grab(videoPath);
 
-        r.removeDuplicates(v);
-        r.findFeatures(v, new SiftConfig(0, 3, 0.02, 10, 1.6));
-        r.findMatches(v);
-        r.findPipeCenter(v);
-        r.filterMatches(v);
-        r.findTriples(v);
-        r.findCameraPoses(v, 2);
-        List<Point3D> points = r.triangulation(v, 2);
-        
+        r.removeDuplicatesParallel(v);
+        r.findFeaturesParallel(v, new SiftConfig(0, 3, 0.02, 10, 1.6));
+        r.findMatchesParallel(v);
+        r.findPipeCenterParallel(v);
+        r.filterMatchesParallel(v);
+        r.findTriplesParallel(v);
+        r.findCameraPosesParallel(v, 2);
+        List<Point3D> points = r.triangulationParallel(v, 2);
+        ObjProducer.createObj(points, "pipe.obj");
+    }
+
+    private static List<Point3D> filterPoints(List<Point3D> points) {
         Point center = new Point(0, 0);
         double e = 0.4;
         double rr = 3.18;
@@ -153,7 +158,7 @@ public class Main {
         LOG.info("{} filtered points left", filtered.size());
         LOG.info("Average center is ({}, {}). Average radius is {}", sumX / points.size(), sumY / points.size(), sumR / points.size());
 
-        ObjProducer.createObj(filtered, "pipe.obj");
+        return filtered;
     }
 
 }

@@ -11,10 +11,10 @@ import org.bytedeco.javacv.OpenCVFrameGrabber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
+import java.util.function.*;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 import static org.bytedeco.javacpp.opencv_core.*;
 import static org.bytedeco.javacpp.opencv_core.cvCircle;
@@ -40,6 +40,7 @@ public class Reconstructor {
         grabber.start();
         opencv_core.IplImage img;
         List<Frame> frames = new ArrayList<Frame>();
+        int idx = 0;
         while (true) {
             try {
                 img = grabber.grab();
@@ -49,7 +50,7 @@ public class Reconstructor {
             if (img == null) {
                 break;
             } else {
-                frames.add(new Frame(ImgUtils.copy(img)));
+                frames.add(new Frame(idx++, ImgUtils.copy(img)));
             }
         }
         grabber.stop();
@@ -61,7 +62,7 @@ public class Reconstructor {
         List<Frame> frames = new ArrayList<Frame>();
         for (int i = 0; i < frame.length; ++i) {
             IplImage img = cvLoadImage(frame[i]);
-            frames.add(new Frame(img));
+            frames.add(new Frame(i, img));
         }
         return new Video(frames);
     }
@@ -74,6 +75,34 @@ public class Reconstructor {
             Frame f2 = video.get(i);
             if (!compare(f1, f2)) {
                 filtered.add(f2);
+            }
+        }
+        video.setFrames(filtered);
+        for (int i = 0; i < video.nFrames(); ++i) {
+            video.get(i).setIdx(i);
+        }
+        LOG.info("Duplicate frames removed, {} left", video.nFrames());
+    }
+
+    public void removeDuplicatesParallel(final Video video) {
+        for (Frame f : video.getFrames()) {
+            f.setUnique(false);
+        }
+        video.getFrames().parallelStream()
+                .forEach(new Consumer<Frame>() {
+                    @Override
+                    public void accept(Frame frame) {
+                        int idx = frame.getIdx();
+                        if (idx == 0 || !compare(frame, video.get(idx - 1))) {
+                            frame.setUnique(true);
+                        }
+                    }
+                });
+        List<Frame> filtered = new ArrayList<Frame>();
+        for (Frame f : video.getFrames()) {
+            if (f.isUnique()) {
+                f.setIdx(filtered.size());
+                filtered.add(f);
             }
         }
         video.setFrames(filtered);
@@ -160,6 +189,64 @@ public class Reconstructor {
         LOG.info("Pipe center was detected at {}, while image center is at {}", center, ImgUtils.center(video));
     }
 
+    public void findPipeCenterParallel(Video video) {
+        video.getFrames().parallelStream()
+                .forEach(new Consumer<Frame>() {
+                    @Override
+                    public void accept(Frame f) {
+                        // color range of black like color
+                        CvScalar min = cvScalar(0, 0, 0, 0);
+                        CvScalar max= cvScalar(30, 30, 30, 0);
+                        // create binary image of original size
+                        IplImage bin = cvCreateImage(cvGetSize(f.img()), 8, 1);
+                        // apply thresholding
+                        cvInRangeS(f.img(), min, max, bin);
+//            Canvas.img(bin);
+                        // crop center
+                        int w = 100;
+                        int h = 200;
+                        opencv_core.IplImage binCropped = cvCreateImage(cvGetSize(f.img()), 8, 1);
+                        cvSetImageROI(bin, cvRect(f.img().width() / 2 - w / 2, f.img().height() / 2 - h / 2, w, h));
+                        cvSetImageROI(binCropped, cvRect(f.img().width() / 2 - w / 2, f.img().height() / 2 - h / 2, w, h));
+                        cvCopy(bin, binCropped);
+                        cvResetImageROI(bin);
+                        cvResetImageROI(binCropped);
+//            Canvas.img(binCropped);
+                        // ex
+                        IplConvKernel kernel = cvCreateStructuringElementEx(7, 7, 3, 3, CV_SHAPE_ELLIPSE);
+                        cvMorphologyEx(binCropped, binCropped, null, kernel, CV_MOP_OPEN);
+                        // smooth filter - median
+                        cvSmooth(binCropped, binCropped, CV_MEDIAN, 5, 0, 0, 0);
+//            Canvas.img(binCropped);
+                        // find circles
+                        CvMemStorage mem = CvMemStorage.create();
+                        CvSeq circles = cvHoughCircles(binCropped, mem, CV_HOUGH_GRADIENT, 2,
+                                (double) binCropped.height() / 1, 1, 1, 1, 300);
+                        if (circles.total() > 0) {
+                            CvPoint3D32f circle = new CvPoint3D32f(cvGetSeqElem(circles, 0));
+                            CvPoint center = cvPoint((int) circle.x(), (int) circle.y());
+                            f.setPipeCenter(new Point(center.x(), center.y()));
+                        }
+                    }
+                });
+
+        float xSum = 0;
+        float ySum = 0;
+        float count = 0;
+        for (Frame f : video.getFrames()) {
+            xSum += f.getPipeCenter().getX();
+            ySum += f.getPipeCenter().getY();
+            ++count;
+        }
+
+        Point center = new Point(xSum / count, ySum / count);
+        for (Frame f : video.getFrames()) {
+            f.setPipeCenter(center);
+        }
+
+        LOG.info("Pipe center was detected at {}, while image center is at {}", center, ImgUtils.center(video));
+    }
+
     public void findFeatures(Video video, SiftConfig sc) {
         SIFT sift = new SIFT(sc.nfeatures, sc.nOctaveLayers, sc.contrastThreshold, sc.edgeThreshold, sc.sigma);
         for (Frame f : video.getFrames()) {
@@ -170,6 +257,23 @@ public class Reconstructor {
 
             f.setFeatures(keypoints, descriptors);
         }
+        LOG.info("Features found");
+    }
+
+    public void findFeaturesParallel(Video video, final SiftConfig sc) {
+        video.getFrames().parallelStream()
+                .forEach(new Consumer<Frame>() {
+                    @Override
+                    public void accept(Frame f) {
+                        SIFT sift = new SIFT(sc.nfeatures, sc.nOctaveLayers,
+                                sc.contrastThreshold, sc.edgeThreshold, sc.sigma);
+                        KeyPoint keypoints = new KeyPoint();
+                        Mat descriptors = new Mat();
+                        sift.detect(f.mat(), keypoints);
+                        sift.compute(f.mat(), keypoints, descriptors);
+                        f.setFeatures(keypoints, descriptors);
+                    }
+                });
         LOG.info("Features found");
     }
 
@@ -199,6 +303,13 @@ public class Reconstructor {
         LOG.info("Matches found");
     }
 
+    public void findMatchesParallel(final Video video) {
+        video.getFrames().parallelStream()
+                .filter(f -> f.getIdx() < video.nFrames() - 1)
+                .forEach(f -> findMatches(f, video.get(f.getIdx() + 1)));
+        LOG.info("Matches found");
+    }
+
     public void findMatches(Frame f1, Frame f2) {
         BFMatcher matcher = new BFMatcher(NORM_L2, true);
         DMatch matches = new DMatch();
@@ -222,6 +333,13 @@ public class Reconstructor {
         for (int i = 0; i < video.nFrames() - 1; ++i) {
             filterMatches(video.get(i));
         }
+        LOG.info("Matches filtered");
+    }
+
+    public void filterMatchesParallel(Video video) {
+        video.getFrames().parallelStream()
+                .filter(f -> f.getIdx() < video.nFrames() - 1)
+                .forEach(f -> filterMatches(f));
         LOG.info("Matches filtered");
     }
 
@@ -325,6 +443,30 @@ public class Reconstructor {
         LOG.info("Triples found");
     }
 
+    public void findTriplesParallel(Video video) {
+        double e = 0.1;
+        video.getFrames().parallelStream()
+                .filter(f -> f.getIdx() < video.nFrames() - 2)
+                .forEach(new Consumer<Frame>() {
+                    @Override
+                    public void accept(Frame f) {
+                        List<Match> ms1 = f.getMatches();
+                        List<Match> ms2 = video.get(f.getIdx() + 1).getMatches();
+                        List<Triple> triples = new ArrayList<>();
+                        for (Match m1 : ms1) {
+                            for (Match m2 : ms2) {
+                                if (MathUtils.dist(m1.getP2(), m2.getP1()) < e) {
+                                    triples.add(new Triple(m1.getP1(), m1.getP2(), m2.getP2()));
+                                    break;
+                                }
+                            }
+                        }
+                        f.setTriples(triples);
+                    }
+                });
+        LOG.info("Triples found");
+    }
+
     public void outputTriples(Video video) {
         for (int i = 0; i < video.nFrames() - 2; ++i) {
             Frame src = video.get(i);
@@ -369,81 +511,98 @@ public class Reconstructor {
 
         for (int i = 0; i < video.nFrames() - 2; ++i) {
             Frame fr = video.get(i);
-
-            // y=0 z1 r1 r2 r3
-            double data[][] = new double[fr.nTriples()][5];
-            for (int t = 0; t < fr.nTriples(); ++t) {
-                data[t][0] = 0;
-                data[t][1] = fr.getDz();
-                data[t][2] = MathUtils.dist(c, fr.getTriples().get(t).getP1());
-                data[t][3] = MathUtils.dist(c, fr.getTriples().get(t).getP2());
-                data[t][4] = MathUtils.dist(c, fr.getTriples().get(t).getP3());
-            }
-
-            LMA lma = new LMA(
-                    new LMAMultiDimFunction() {
-
-                        private double ang(double r) {
-                            switch (equationType) {
-                                case 0: return Math.atan(r / f);
-                                case 1: return 2.0 * Math.atan(r / f / 2.0);
-                                case 2: return r / f;
-                                case 3: return Math.asin(r / f);
-                                case 4: return 2.0 * Math.asin(r / f / 2.0);
-                            }
-                            throw new IllegalArgumentException("Unknown equation type " + equationType);
-                        }
-
-                        private double koef(double r1, double r2) {
-                            return Math.tan(ang(r1)) * Math.tan(ang(r2)) / (Math.tan(ang(r1)) - Math.tan(ang(r2)));
-                        }
-
-                        private double pow(double a) {
-                            return a * a;
-                        }
-
-                        @Override
-                        public double getY(double[] x, double[] a) {
-                            double z1 = x[0];
-                            double r1 = x[1];
-                            double r2 = x[2];
-                            double r3 = x[3];
-
-                            double z2 = a[0];
-
-//                            return z1 * koef(r1, r2) - z2 * koef(r2, r3);
-                            return pow(z1 * koef(r1, r2) - z2 * koef(r2, r3));
-                        }
-
-                        @Override
-                        public double getPartialDerivate(double[] x, double[] a, int parameterIndex) {
-                            double z1 = x[0];
-                            double r1 = x[1];
-                            double r2 = x[2];
-                            double r3 = x[3];
-
-                            double z2 = a[0];
-
-                            switch (parameterIndex) {
-                                // z2
-                                case 0:
-//                                    return - koef(r2, r3);
-                                    return - 2 * koef(r2, r3) * (z1 * koef(r1, r2) - z2 * koef(r2, r3));
-                            }
-
-                            throw new RuntimeException("No such parameter index: " + parameterIndex);
-                        }
-                    },
-                    // z2
-                    new double[] {1},
-                    data
-            );
-            lma.fit();
-
-            video.get(i + 1).setDz(lma.parameters[0]);
+            video.get(i + 1).setDz(findDz(fr, c, f, equationType));
         }
 
         LOG.info("Camera poses found");
+    }
+
+    public void findCameraPosesParallel(Video video, final int equationType) {
+        // One penguin :)
+        video.get(0).setDz(1);
+
+        final Point c = ImgUtils.center(video);
+        final double f = f();
+
+        video.getFrames().parallelStream()
+                .filter(fr -> fr.getIdx() > 0 && fr.getIdx() < video.nFrames() - 1)
+                .forEach(fr -> fr.setDz(findDz(video.get(fr.getIdx() - 1), c, f, equationType)));
+
+        LOG.info("Camera poses found");
+    }
+
+    private double findDz(Frame fr, Point c, double f, int equationType) {
+        // y=0 z1 r1 r2 r3
+        double data[][] = new double[fr.nTriples()][5];
+        for (int t = 0; t < fr.nTriples(); ++t) {
+            data[t][0] = 0;
+            data[t][1] = fr.getDz();
+            data[t][2] = MathUtils.dist(c, fr.getTriples().get(t).getP1());
+            data[t][3] = MathUtils.dist(c, fr.getTriples().get(t).getP2());
+            data[t][4] = MathUtils.dist(c, fr.getTriples().get(t).getP3());
+        }
+
+        LMA lma = new LMA(
+                new LMAMultiDimFunction() {
+
+                    private double ang(double r) {
+                        switch (equationType) {
+                            case 0: return Math.atan(r / f);
+                            case 1: return 2.0 * Math.atan(r / f / 2.0);
+                            case 2: return r / f;
+                            case 3: return Math.asin(r / f);
+                            case 4: return 2.0 * Math.asin(r / f / 2.0);
+                        }
+                        throw new IllegalArgumentException("Unknown equation type " + equationType);
+                    }
+
+                    private double koef(double r1, double r2) {
+                        return Math.tan(ang(r1)) * Math.tan(ang(r2)) / (Math.tan(ang(r1)) - Math.tan(ang(r2)));
+                    }
+
+                    private double pow(double a) {
+                        return a * a;
+                    }
+
+                    @Override
+                    public double getY(double[] x, double[] a) {
+                        double z1 = x[0];
+                        double r1 = x[1];
+                        double r2 = x[2];
+                        double r3 = x[3];
+
+                        double z2 = a[0];
+
+//                            return z1 * koef(r1, r2) - z2 * koef(r2, r3);
+                        return pow(z1 * koef(r1, r2) - z2 * koef(r2, r3));
+                    }
+
+                    @Override
+                    public double getPartialDerivate(double[] x, double[] a, int parameterIndex) {
+                        double z1 = x[0];
+                        double r1 = x[1];
+                        double r2 = x[2];
+                        double r3 = x[3];
+
+                        double z2 = a[0];
+
+                        switch (parameterIndex) {
+                            // z2
+                            case 0:
+//                                    return - koef(r2, r3);
+                                return - 2 * koef(r2, r3) * (z1 * koef(r1, r2) - z2 * koef(r2, r3));
+                        }
+
+                        throw new RuntimeException("No such parameter index: " + parameterIndex);
+                    }
+                },
+                // z2
+                new double[] {1},
+                data
+        );
+        lma.fit();
+
+        return lma.parameters[0];
     }
 
     public List<Point> cameraPosesPlot(Video video) {
@@ -495,7 +654,40 @@ public class Reconstructor {
         return res;
     }
 
+    public List<Point3D> triangulationParallel(Video video, final int equationType) {
+        Point center = ImgUtils.center(video);
+        for (int i = 0; i < video.nFrames(); ++i) {
+            video.get(i).setZ(i == 0 ? 10 : video.get(i - 1).getZ() + video.get(i - 1).getDz());
+        }
 
+        List<Point3D> points = video.getFrames().parallelStream()
+                .filter(f -> f.getIdx() < video.nFrames() - 1)
+                .map(new Function<Frame, List<Point3D>>() {
+                    @Override
+                    public List<Point3D> apply(Frame fr) {
+                        List<Point3D> res = new ArrayList<>();
+                        for (Match m : fr.getMatches()) {
+                            double r1 = MathUtils.dist(center, m.getP1());
+                            double r2 = MathUtils.dist(center, m.getP2());
+
+                            double dz = fr.getDz() * Math.tan(ang(r1, equationType)) / (Math.tan(ang(r1, equationType)) - Math.tan(ang(r2, equationType)));
+                            double r = dz * Math.tan(ang(r2, equationType));
+
+                            double koef = r / r1;
+                            double x = m.getP1().getX() - center.getX();
+                            double y = m.getP1().getY() - center.getY();
+
+                            res.add(new Point3D(x * koef, y * koef, fr.getZ()));
+                        }
+                        return res;
+                    }
+                })
+                .flatMap(list -> list.stream())
+                .collect(Collectors.toList());
+
+        LOG.info("Triangulation done with {} points", points.size());
+        return points;
+    }
 
 
 

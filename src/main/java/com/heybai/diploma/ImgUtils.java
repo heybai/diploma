@@ -14,13 +14,13 @@ public class ImgUtils {
     }
 
     public static Frame copy(Frame src) {
-        return new Frame(copy(src.img()));
+        return new Frame(src.getIdx(), copy(src.img()));
     }
 
     public static Frame emptyLike(Frame frame) {
         IplImage src = frame.img();
         IplImage dst = IplImage.create(cvGetSize(src), src.depth(), src.nChannels());
-        return new Frame(dst);
+        return new Frame(frame.getIdx(), dst);
     }
 
     public static Point center(Video video) {

@@ -29,11 +29,11 @@ import static org.bytedeco.javacpp.opencv_nonfree.*;
 /**
  * Created by heybai on 5/8/14.
  */
-public class Recostuctor {
+public class Reconstructor {
 
     static { Loader.load(opencv_nonfree.class); }
 
-    private static Logger LOG = LoggerFactory.getLogger(Recostuctor.class);
+    private static Logger LOG = LoggerFactory.getLogger(Reconstructor.class);
 
     public Video grab(String videoPath) throws FrameGrabber.Exception {
         FrameGrabber grabber = OpenCVFrameGrabber.createDefault(videoPath);
@@ -360,12 +360,12 @@ public class Recostuctor {
         }
     }
 
-    public void findCameraPoses(Video video) {
+    public void findCameraPoses(Video video, final int equationType) {
         // One penguin :)
         video.get(0).setDz(1);
 
         final Point c = ImgUtils.center(video);
-        final double f = 1.178 * 206;
+        final double f = f();
 
         for (int i = 0; i < video.nFrames() - 2; ++i) {
             Frame fr = video.get(i);
@@ -382,8 +382,20 @@ public class Recostuctor {
 
             LMA lma = new LMA(
                     new LMAMultiDimFunction() {
+
+                        private double ang(double r) {
+                            switch (equationType) {
+                                case 0: return Math.atan(r / f);
+                                case 1: return 2.0 * Math.atan(r / f / 2.0);
+                                case 2: return r / f;
+                                case 3: return Math.asin(r / f);
+                                case 4: return 2.0 * Math.asin(r / f / 2.0);
+                            }
+                            throw new IllegalArgumentException("Unknown equation type " + equationType);
+                        }
+
                         private double koef(double r1, double r2) {
-                            return Math.tan(r1 / f) * Math.tan(r2 / f) / (Math.tan(r1 / f) - Math.tan(r2 / f));
+                            return Math.tan(ang(r1)) * Math.tan(ang(r2)) / (Math.tan(ang(r1)) - Math.tan(ang(r2)));
                         }
 
                         private double pow(double a) {
@@ -454,16 +466,11 @@ public class Recostuctor {
         return plot;
     }
 
-    public List<Point3D> triangulation(Video video) {
+    public List<Point3D> triangulation(Video video, final int equationType) {
         List<Point3D> res = new ArrayList<Point3D>();
 
         double cameraZ = 10;
         Point center = ImgUtils.center(video);
-
-        double focus = 1.178;
-        double k = 320 / (focus * Math.sin(Math.PI * 5 / 9));
-        double f = focus * k;
-        LOG.info("focus={}, k={}, f={}", focus, k, f);
 
         for (int i = 0; i < video.nFrames() - 1; ++i) {
             Frame fr = video.get(i);
@@ -471,8 +478,8 @@ public class Recostuctor {
                 double r1 = MathUtils.dist(center, m.getP1());
                 double r2 = MathUtils.dist(center, m.getP2());
 
-                double dz = fr.getDz() * Math.tan(r1 / f) / (Math.tan(r1 / f) - Math.tan(r2 / f));
-                double r = dz * Math.tan(r2 / f);
+                double dz = fr.getDz() * Math.tan(ang(r1, equationType)) / (Math.tan(ang(r1, equationType)) - Math.tan(ang(r2, equationType)));
+                double r = dz * Math.tan(ang(r2, equationType));
 
                 double koef = r / r1;
                 double x = m.getP1().getX() - center.getX();
@@ -538,6 +545,32 @@ public class Recostuctor {
 //            plot.add(new Point(i, (float) rs.get(i).h));
 //        }
 //        MathPlot.plot("Heights", "i", "height", plot);
+    }
+
+    private static boolean printF = true;
+
+    private double f() {
+        double focus = 1.178;
+        double k = 320 / (focus * Math.sin(Math.PI * 5 / 11));
+        double f = focus * k;
+        f = 275;
+        if (printF) {
+            printF = false;
+            LOG.info("focus={}, k={}, f={}", focus, k, f);
+        }
+        return f;
+    }
+
+    private double ang(double r, int equationType) {
+        double f = f();
+        switch (equationType) {
+            case 0: return Math.atan(r / f);
+            case 1: return 2.0 * Math.atan(r / f / 2.0);
+            case 2: return r / f;
+            case 3: return Math.asin(r / f);
+            case 4: return 2.0 * Math.asin(r / f / 2.0);
+        }
+        throw new IllegalArgumentException("Unknown equation type " + equationType);
     }
 
     private class R {

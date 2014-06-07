@@ -5,7 +5,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 
@@ -20,16 +19,18 @@ public class Main {
     static String videoPath = "/Volumes/Macintosh HD/Users/heybai/Documents/yandex.disk/Documents/University/Diploma/materials/e1.avi";
 
     public static void main(String[] args) throws FrameGrabber.Exception, InterruptedException {
+        LOG.info("Start");
 //        featuresStats();
 //        matchesStats();
 //        triplesStats();
 //        cameraPosesStats();
         triangulation();
 //        filterPoints();
+        LOG.info("Stop");
     }
 
     public static void featuresStats() throws FrameGrabber.Exception {
-        Recostuctor r = new Recostuctor();
+        Reconstructor r = new Reconstructor();
 
         Video v = r.grab(videoPath);
         r.removeDuplicates(v);
@@ -39,7 +40,7 @@ public class Main {
     }
 
     public static void matchesStats() throws FrameGrabber.Exception, InterruptedException {
-        Recostuctor r = new Recostuctor();
+        Reconstructor r = new Reconstructor();
 
         Video v = r.grab(videoPath);
 //        Video v = r.grab(
@@ -58,7 +59,7 @@ public class Main {
     }
 
     public static void triplesStats() throws FrameGrabber.Exception, InterruptedException {
-        Recostuctor r = new Recostuctor();
+        Reconstructor r = new Reconstructor();
 
         Video v = r.grab(videoPath);
 
@@ -74,7 +75,7 @@ public class Main {
     }
 
     public static void cameraPosesStats() throws FrameGrabber.Exception, InterruptedException {
-        Recostuctor r = new Recostuctor();
+        Reconstructor r = new Reconstructor();
 
         Video v = r.grab(videoPath);
 
@@ -84,14 +85,21 @@ public class Main {
         r.findPipeCenter(v);
         r.filterMatches(v);
         r.findTriples(v);
-        r.findCameraPoses(v);
-        r.outputTriples(v);
+
+        r.findCameraPoses(v, 4);
+//        r.outputTriples(v);
         MathPlot.plot("Camera poses & avg matches", "camera", "delta z & avg match length", r.cameraPosesPlot(v), r.mathchesAvgDistPlot(v));
 //        MathPlot.plot("Camera poses & avg matches", "camera", "delta z & avg match length", r.cameraPosesPlot(v));
+
+//        List<Point>[] plots = new List[5];
+//        for (int i = 0; i < 5; ++i) {
+//            r.findCameraPoses(v, 2);
+//            plots[i] = r.cameraPosesPlot(v);
+//        }
     }
 
     public static void triangulation() throws FrameGrabber.Exception, InterruptedException {
-        Recostuctor r = new Recostuctor();
+        Reconstructor r = new Reconstructor();
 
         Video v = r.grab(videoPath);
 
@@ -101,12 +109,18 @@ public class Main {
         r.findPipeCenter(v);
         r.filterMatches(v);
         r.findTriples(v);
-        r.findCameraPoses(v);
-        ObjProducer.createObj(r.triangulation(v));
+
+        r.findCameraPoses(v, 2);
+        ObjProducer.createObj(r.triangulation(v, 2), "pipe.obj");
+
+//        for (int i = 0; i < 5; ++i) {
+//            r.findCameraPoses(v, i);
+//            ObjProducer.createObj(r.triangulation(v, i), String.format("pipe - %s.obj", i));
+//        }
     }
     
     public static void filterPoints() throws FrameGrabber.Exception, InterruptedException {
-        Recostuctor r = new Recostuctor();
+        Reconstructor r = new Reconstructor();
 
         Video v = r.grab(videoPath);
 
@@ -116,8 +130,8 @@ public class Main {
         r.findPipeCenter(v);
         r.filterMatches(v);
         r.findTriples(v);
-        r.findCameraPoses(v);
-        List<Point3D> points = r.triangulation(v);
+        r.findCameraPoses(v, 2);
+        List<Point3D> points = r.triangulation(v, 2);
         
         Point center = new Point(0, 0);
         double e = 0.4;
@@ -139,7 +153,7 @@ public class Main {
         LOG.info("{} filtered points left", filtered.size());
         LOG.info("Average center is ({}, {}). Average radius is {}", sumX / points.size(), sumY / points.size(), sumR / points.size());
 
-        ObjProducer.createObj(filtered);
+        ObjProducer.createObj(filtered, "pipe.obj");
     }
 
 }

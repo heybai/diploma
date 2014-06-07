@@ -35,9 +35,9 @@ public class ObjProducer {
             {4, 1, 5, 8}
     };
 
-    public static void createObj(List<Point3D> points) {
+    public static void createObj(List<Point3D> points, String fileName) {
         try {
-            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("pipe.obj")));
+            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(fileName)));
 
             for (Point3D p : points) {
                 for (int i = 0; i < v.length; ++i) {

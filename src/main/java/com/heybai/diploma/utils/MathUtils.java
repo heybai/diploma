@@ -1,4 +1,7 @@
-package com.heybai.diploma;
+package com.heybai.diploma.utils;
+
+import com.heybai.diploma.model.Match;
+import com.heybai.diploma.model.Point;
 
 /**
  * Created by heybai on 5/7/14.

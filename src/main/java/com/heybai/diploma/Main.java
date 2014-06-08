@@ -1,5 +1,10 @@
 package com.heybai.diploma;
 
+import com.heybai.diploma.model.Point;
+import com.heybai.diploma.model.Point3D;
+import com.heybai.diploma.model.Video;
+import com.heybai.diploma.utils.MathUtils;
+import com.heybai.diploma.view.MathPlot;
 import org.bytedeco.javacv.FrameGrabber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

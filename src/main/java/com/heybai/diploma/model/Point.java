@@ -1,4 +1,4 @@
-package com.heybai.diploma;
+package com.heybai.diploma.model;
 
 /**
  * Created by heybai on 5/7/14.

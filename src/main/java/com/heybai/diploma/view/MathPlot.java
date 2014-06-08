@@ -1,9 +1,9 @@
-package com.heybai.diploma;
+package com.heybai.diploma.view;
 
+import com.heybai.diploma.model.Point;
 import org.math.plot.Plot2DPanel;
 
 import javax.swing.*;
-import java.util.ArrayList;
 import java.util.List;
 
 /**

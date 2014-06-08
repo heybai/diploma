@@ -1,5 +1,6 @@
-package com.heybai.diploma;
+package com.heybai.diploma.view;
 
+import com.heybai.diploma.model.Frame;
 import org.bytedeco.javacv.CanvasFrame;
 
 import static org.bytedeco.javacpp.opencv_core.*;

@@ -2,6 +2,10 @@ package com.heybai.diploma;
 
 import com.heybai.diploma.lma.LMA;
 import com.heybai.diploma.lma.LMAMultiDimFunction;
+import com.heybai.diploma.model.*;
+import com.heybai.diploma.model.Point;
+import com.heybai.diploma.utils.ImgUtils;
+import com.heybai.diploma.utils.MathUtils;
 import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacpp.Loader;
 import org.bytedeco.javacpp.opencv_core;
@@ -13,7 +17,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.function.*;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 import static org.bytedeco.javacpp.opencv_core.*;
@@ -181,7 +184,7 @@ public class Reconstructor {
             }
         }
 
-        Point center = new Point(xSum / count, ySum / count);
+        com.heybai.diploma.model.Point center = new Point(xSum / count, ySum / count);
         for (Frame f : video.getFrames()) {
             f.setPipeCenter(center);
         }

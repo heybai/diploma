@@ -1,4 +1,4 @@
-package com.heybai.diploma;
+package com.heybai.diploma.model;
 
 import org.bytedeco.javacpp.opencv_core.*;
 import org.bytedeco.javacpp.opencv_features2d.*;
@@ -25,7 +25,7 @@ public class Frame {
     private List<Triple> triples;       // not for last two
 
     // Center
-    private Point pipeCenter = new Point(329, 377);
+    private com.heybai.diploma.model.Point pipeCenter = new com.heybai.diploma.model.Point(329, 377);
 
     // Position
     // Distance to the next frame
@@ -118,11 +118,11 @@ public class Frame {
         return triples.size();
     }
 
-    public Point getPipeCenter() {
+    public com.heybai.diploma.model.Point getPipeCenter() {
         return pipeCenter;
     }
 
-    public void setPipeCenter(Point pipeCenter) {
+    public void setPipeCenter(com.heybai.diploma.model.Point pipeCenter) {
         this.pipeCenter = pipeCenter;
     }
 

@@ -1,4 +1,7 @@
-package com.heybai.diploma;
+package com.heybai.diploma.utils;
+
+import com.heybai.diploma.model.*;
+import com.heybai.diploma.model.Point;
 
 import static org.bytedeco.javacpp.opencv_core.*;
 
@@ -23,7 +26,7 @@ public class ImgUtils {
         return new Frame(frame.getIdx(), dst);
     }
 
-    public static Point center(Video video) {
+    public static com.heybai.diploma.model.Point center(Video video) {
         IplImage img = video.get(0).img();
         return new Point(img.width() / 2, img.height() / 2);
     }

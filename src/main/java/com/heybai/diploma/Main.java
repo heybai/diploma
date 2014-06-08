@@ -134,6 +134,7 @@ public class Main {
         r.findTriplesParallel(v);
         r.findCameraPosesParallel(v, 2);
         List<Point3D> points = r.triangulationParallel(v, 2);
+//        points = filterPoints(points);
         ObjProducer.createObj(points, "pipe.obj");
     }
 

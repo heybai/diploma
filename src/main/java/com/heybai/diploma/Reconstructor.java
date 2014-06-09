@@ -507,7 +507,7 @@ public class Reconstructor {
 
     public void findCameraPoses(Video video, final int equationType) {
         // One penguin :)
-        video.get(0).setDz(1);
+        video.get(0).setDz(35);
 
         final Point c = ImgUtils.center(video);
         final double f = f();
@@ -522,7 +522,7 @@ public class Reconstructor {
 
     public void findCameraPosesParallel(Video video, final int equationType) {
         // One penguin :)
-        video.get(0).setDz(1);
+        video.get(0).setDz(35);
 
         final Point c = ImgUtils.center(video);
         final double f = f();
@@ -748,7 +748,7 @@ public class Reconstructor {
         double focus = 1.178;
         double k = 320 / (focus * Math.sin(Math.PI * 5 / 11));
         double f = focus * k;
-        f = 275;
+        f = 204;
         if (printF) {
             printF = false;
             LOG.info("focus={}, k={}, f={}", focus, k, f);
